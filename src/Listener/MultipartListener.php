@@ -21,6 +21,11 @@ class MultipartListener extends JsonApiListener
     protected $fieldsToInsert = [];
 
     /**
+     * @var boolean Should listener fall back to JSON API.
+     */
+    protected $useParent = false;
+
+    /**
      * Override JsonApiListener method to NOT enforce JSON API request methods.
      * Instead, enforce multipart content type.
      *
@@ -38,7 +43,13 @@ class MultipartListener extends JsonApiListener
         }
 
         if (!preg_match('/^multipart\/form-data/', $this->_request()->contentType())) {
-            throw new BadRequestException("Multipart requests require the \"$multipartContentType\" Content-Type header");
+            try {
+                parent::_checkRequestMethods();
+                $this->useParent = true;
+                return true;
+            } catch(BadRequestException $e) {
+                throw new BadRequestException("Multipart requests require the \"$multipartContentType\" Content-Type header");
+            }
         }
 
         return true;
@@ -52,6 +63,8 @@ class MultipartListener extends JsonApiListener
      * Save additional fields to entity before saving.
      */
     public function beforeSave(Event $event) {
+        if($this->useParent) return true;
+
         $entity = $event->getSubject()->entity;
 
         foreach($this->fieldsToInsert as $key => $value) {
@@ -64,18 +77,23 @@ class MultipartListener extends JsonApiListener
      */
     public function beforeHandle(Event $event)
     {
+        $this->_checkRequestMethods();
+
+        if($this->useParent) {
+            return parent::beforeHandle($event);
+        }
+
         $this->eventManager()->on('fileProcessed', function(Event $event) {
             // Fields to insert
             if (is_array($event->data)) {
                 $this->fieldsToInsert = $event->data;
             }
             
-            $this->_checkRequestMethods();
             $this->_validateConfigOptions();
             $this->_checkRequestData();
         });
 
-        $requestData = $this->_controller()->request->data();
+        $requestData = $this->_request()->data();
 
         $entity = $requestData['entity'];
         $file = $requestData['file'];
