@@ -5,7 +5,8 @@
     "license": "MIT",
     "require": {
         "cakephp/cakephp": "^3.4",
-        "friendsofcake/crud-json-api": "^0.2.2"
+        "friendsofcake/crud-json-api": "^0.2.2",
+        "riverline/multipart-parser": "^1.1"
     },
     "require-dev": {
         "phpunit/phpunit": "^5.7|^6.0"

@@ -11,6 +11,8 @@ use Cake\Event\EventListenerInterface;
 use Cake\Event\EventDispatcherTrait;
 use Cake\Event\EventManager;
 
+use Riverline\MultiPartParser\Part;
+
 class MultipartListener extends JsonApiListener
 {
     use EventDispatcherTrait;
@@ -93,7 +95,12 @@ class MultipartListener extends JsonApiListener
             $this->_checkRequestData();
         });
 
-        $requestData = $this->_request()->data();
+        $parts = new Part($this->_request()->input());
+        // add is multipart cond
+        
+        $entityPart = $parts->getPartsByName('entity');
+        $filePart = $parts->getPartsByName('file');
+        // and emptiness cond
 
         $entity = $requestData['entity'];
         $file = $requestData['file'];
