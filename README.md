@@ -1,11 +1,40 @@
 # MultipartJsonApiListener plugin for CakePHP
 
-## Installation
+Docs soon.
 
-You can install this plugin into your CakePHP application using [composer](http://getcomposer.org).
+# Example usage
 
-The recommended way to install composer packages is:
+In Controller#initialize method:
 
+```php
+$this->loadComponent('Crud.Crud', [
+    'actions' => [
+        'Crud.Index',
+        'Crud.View',
+        'Crud.Add',
+        'Crud.Edit',
+        'Crud.Delete'
+    ],
+    'listeners' => [
+        'MultipartJsonApiListener.Multipart',
+        'CrudJsonApi.Pagination',
+        'Crud.Search'
+    ]
+]);
 ```
-composer require your-name-here/MultipartJsonApiListener
+
+```php
+public function implementedEvents() {
+    return [
+        'fileUploaded' => 'handleUpload'
+    ];
+}
+
+public function handleUpload(Event $event) {
+    $file = $event->getData();
+    $addFields = [
+        'url' => 'some'
+    ];
+    $event->subject->eventManager()->dispatch(new Event('fileProcessed', $this, $addFields));
+}
 ```
