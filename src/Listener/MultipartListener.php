@@ -11,7 +11,7 @@ use Cake\Event\EventListenerInterface;
 use Cake\Event\EventDispatcherTrait;
 use Cake\Event\EventManager;
 
-use Riverline\MultiPartParser\Part;
+use h4cc\Multipart\ParserSelector;
 
 class MultipartListener extends JsonApiListener
 {
@@ -58,7 +58,12 @@ class MultipartListener extends JsonApiListener
     }
 
     public function implementedEvents() {
-        return parent::implementedEvents() + ['Crud.beforeSave' => 'beforeSave'];
+        $parentEvents = parent::implementedEvents();
+        $selfEvents = ['Crud.beforeSave' => 'beforeSave'];
+
+        return is_array($parentEvents)
+            ? array_merge($parentEvents, $selfEvents)
+            : $selfEvents;
     }
 
     /**
@@ -95,16 +100,31 @@ class MultipartListener extends JsonApiListener
             $this->_checkRequestData();
         });
 
-        $parts = new Part($this->_request()->input());
-        // add is multipart cond
+        $contentType = $this->_request()->contentType();
+
+        $parserSelector = new ParserSelector();
+        $parser = $parserSelector->getParserForContentType($contentType);
+        $parts = $parser->parse($this->_request()->input());
+
+        $bodies = array_reduce($parts, function($parts, $part) {
+            $contentDisp = $part['headers']['content-disposition'][0];
+
+            // Extract part's name from content-disposition
+            $matches = [];
+            preg_match('/^.*\sname="(.*?)".*$/', $contentDisp, $matches);
+            $name = $matches[1];
+
+            $parts[$name] = $part['body'];
+            return $parts;
+        });
+
+        var_dump($bodies);
+
+        // and emptiness conds
+
+        $entity = $bodies['entity'];
+        $file = $bodies['file'];
         
-        $entityPart = $parts->getPartsByName('entity');
-        $filePart = $parts->getPartsByName('file');
-        // and emptiness cond
-
-        $entity = $requestData['entity'];
-        $file = $requestData['file'];
-
         $this->_controller()->request->data = json_decode($entity, true);
 
         $fileUploadEvent = new Event('fileUploaded', $this, $file);
