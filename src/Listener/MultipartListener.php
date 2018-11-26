@@ -18,6 +18,16 @@ class MultipartListener extends JsonApiListener
     use EventDispatcherTrait;
 
     /**
+     * @var string Index of json+api part of request
+     */
+    const JSON_API_ENTITY_PART_INDEX = 'entity';
+
+    /**
+     * @var string Index of file part of request
+     */
+    const FILE_PART_INDEX = 'file';
+
+    /**
      * @var [] Additional fields to insert to entity after file uploads.
      */
     protected $fieldsToInsert = [];
@@ -81,15 +91,18 @@ class MultipartListener extends JsonApiListener
 
     /**
      * Override JsonApi's beforeHandle to extract file's data from request data.
+     * @throws \Cake\Network\Exception\BadRequestException
      */
     public function beforeHandle(Event $event)
     {
         $this->_checkRequestMethods();
 
+        // If we don't have multipart content type, use regular JSON+API handler
         if($this->useParent) {
             return parent::beforeHandle($event);
         }
 
+        // After file processed, save fields to be inserted passed in event
         $this->eventManager()->on('fileProcessed', function(Event $event) {
             // Fields to insert
             if (is_array($event->data)) {
@@ -100,33 +113,31 @@ class MultipartListener extends JsonApiListener
             $this->_checkRequestData();
         });
 
+        // Parse content depending on content type (always multipart, though)
         $contentType = $this->_request()->contentType();
 
         $parserSelector = new ParserSelector();
         $parser = $parserSelector->getParserForContentType($contentType);
-        $parts = $parser->parse($this->_request()->input());
 
-        $bodies = array_reduce($parts, function($parts, $part) {
-            $contentDisp = $part['headers']['content-disposition'][0];
+        // Get body parts (elements of multipart)
+        $parts = $this->_request()->data();
 
-            // Extract part's name from content-disposition
-            $matches = [];
-            preg_match('/^.*\sname="(.*?)".*$/', $contentDisp, $matches);
-            $name = $matches[1];
+        // Check if required parts exist
+        if(!array_key_exists(self::JSON_API_ENTITY_PART_INDEX, $parts)) {
+            throw new BadRequestException('No JSON+API entity found in multipart request (looking for `' . self::JSON_API_ENTITY_PART_INDEX . '` part name).');
+        }
+        if(!array_key_exists(self::FILE_PART_INDEX, $parts)) {
+            throw new BadRequestException('No file entity found in multipart request (looking for `' . self::FILE_PART_INDEX . '` part name).');
+        }
 
-            $parts[$name] = $part['body'];
-            return $parts;
-        });
+        // Get entity (JSON+API) and file parts
+        $entity = $parts[self::JSON_API_ENTITY_PART_INDEX];
+        $file = $parts[self::FILE_PART_INDEX];
 
-        var_dump($bodies);
-
-        // and emptiness conds
-
-        $entity = $bodies['entity'];
-        $file = $bodies['file'];
-        
+        // Set entity (JSON+API) data for controller
         $this->_controller()->request->data = json_decode($entity, true);
 
+        // Emit fileUploaded event to be handled in controller
         $fileUploadEvent = new Event('fileUploaded', $this, $file);
         $this->_controller()->eventManager()->dispatch($fileUploadEvent);
 
