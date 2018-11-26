@@ -1,6 +1,6 @@
 {
-    "name": "your-name-here/MultipartJsonApiListener",
-    "description": "MultipartJsonApiListener plugin for CakePHP",
+    "name": "oskar1233/crud-multipart-api",
+    "description": "Multipart/JSON+API listener plugin for CakePHP",
     "type": "cakephp-plugin",
     "license": "MIT",
     "require": {
