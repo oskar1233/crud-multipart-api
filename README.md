@@ -1,6 +1,12 @@
 # MultipartJsonApiListener plugin for CakePHP
 
-Docs soon.
+Basically, the library utilized CakePHP's events mechanism and custom listener for `multipart/form-data` content type.
+
+To handle file and JSON+API payload at once, you'll need to pass two elements in the multipart request:
+- file - with name `file`,
+- json+api payload - with name `entity`.
+
+More docs soon.
 
 # Example usage
 
@@ -22,6 +28,8 @@ $this->loadComponent('Crud.Crud', [
     ]
 ]);
 ```
+
+In controller:
 
 ```php
 public function implementedEvents() {
